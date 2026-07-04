@@ -2,12 +2,29 @@ import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  app.use(helmet({
+    contentSecurityPolicy: false, // Vite uses inline scripts in dev
+  }));
+  app.use(cors());
+  app.use(express.json({ limit: '5mb' })); // Reduced from 50mb since no images
+
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    message: { error: "Too many requests from this IP, please try again after 15 minutes" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  
+  app.use("/api/", apiLimiter);
 
   app.get("/api/geocode", async (req, res) => {
     try {
@@ -28,67 +45,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/analyze-image", async (req, res) => {
-    try {
-      const { image, currentLocation } = req.body;
-      if (!image) {
-        return res.status(400).json({ error: "Missing image" });
-      }
 
-      const prompt = `Identify the object/monument in this image (taken near ${currentLocation || 'an unknown location'}). 
-Return a JSON object with the following fields:
-- name: The name of the object, monument, street, food, temple, artwork, or market.
-- history: A brief history.
-- culturalSignificance: The cultural significance.
-- hiddenFacts: 2-3 hidden or lesser-known facts.
-- bestTimeToVisit: The best time to visit or experience it.
-
-Do not return markdown, only the raw JSON object.`;
-
-      const groqApiKey = process.env.GROQ_API_KEY;
-      if (!groqApiKey) {
-        throw new Error("GROQ_API_KEY environment variable is missing.");
-      }
-
-      // image comes as a data URL, we can pass it directly to groq vision
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${groqApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "llama-3.2-90b-vision-preview",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: image } }
-              ]
-            }
-          ]
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Groq API error: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      let text = data.choices[0]?.message?.content;
-      if (!text) throw new Error("No response from AI");
-      
-      // Clean up if it returned markdown json block
-      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-
-      res.json(JSON.parse(text));
-    } catch (error: any) {
-      console.error("Error analyzing image:", error);
-      res.status(500).json({ error: "Failed to analyze image" });
-    }
-  });
 
   app.post("/api/generate-day-plan", async (req, res) => {
     try {

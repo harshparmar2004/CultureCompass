@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, MapPin, Map, Gem, BookOpen, CalendarDays, Route, Users, RefreshCw, Printer, Search, MapPinned, Loader2, Menu, X, Edit2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { MapPin, Map, Gem, BookOpen, CalendarDays, Route, Users, RefreshCw, Printer, Search, MapPinned, Loader2, Menu, X, Edit2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { DestinationData } from './types';
 
 const TRIP_TYPES = ['Solo', 'Couple', 'Family', 'Friends Group'];
 const SECTIONS = [
-  { id: 'aiCamera', label: 'AI Camera Guide', icon: Camera },
   { id: 'dayPlanner', label: 'AI Smart Day Planner', icon: Clock },
   { id: 'overview', label: 'Overview', icon: MapPin },
   { id: 'attractions', label: 'Local Attractions', icon: Gem },
@@ -47,77 +46,7 @@ export default function App() {
   // Accordion state for itinerary
   const [openDays, setOpenDays] = useState<Record<number, boolean>>({ 1: true });
 
-  // Camera State
-  const [cameraImage, setCameraImage] = useState<string | null>(null);
-  const [cameraResult, setCameraResult] = useState<any>(null);
-  const [isAnalyzingCamera, setIsAnalyzingCamera] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Day Planner State
-  const [dayPlanTime, setDayPlanTime] = useState('6 hours');
-  const [dayPlanBudget, setDayPlanBudget] = useState('₹1000');
-  const [dayPlanCompanions, setDayPlanCompanions] = useState('parents');
-  const [dayPlanResult, setDayPlanResult] = useState<any>(null);
-  const [isGeneratingDayPlan, setIsGeneratingDayPlan] = useState(false);
-  const [dayPlanError, setDayPlanError] = useState<string | null>(null);
-
-  const generateDayPlan = async () => {
-    setIsGeneratingDayPlan(true);
-    setDayPlanError(null);
-    setDayPlanResult(null);
-    try {
-      const res = await fetch('/api/generate-day-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          currentLocation, 
-          timeAvailable: dayPlanTime, 
-          budgetAvailable: dayPlanBudget, 
-          travelingWith: dayPlanCompanions 
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to generate day plan. Please try again.');
-      const data = await res.json();
-      setDayPlanResult(data.plan);
-    } catch (err: any) {
-      setDayPlanError(err.message);
-    } finally {
-      setIsGeneratingDayPlan(false);
-    }
-  };
-
-  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCameraImage(reader.result as string);
-        analyzeImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const analyzeImage = async (base64Image: string) => {
-    setIsAnalyzingCamera(true);
-    setCameraError(null);
-    setCameraResult(null);
-    try {
-      const res = await fetch('/api/analyze-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64Image, currentLocation }),
-      });
-      if (!res.ok) throw new Error('Failed to analyze image. Please try again.');
-      const data = await res.json();
-      setCameraResult(data);
-    } catch (err: any) {
-      setCameraError(err.message);
-    } finally {
-      setIsAnalyzingCamera(false);
-    }
-  };
 
   const fetchSection = async (sectionId: string, isRegenerate = false, locationOverride?: string, ageOverride?: number, durationOverride?: number) => {
     if (sectionId === 'mapView') return; // Map view doesn't need AI generation
@@ -322,8 +251,9 @@ export default function App() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Your Age</label>
+            <label htmlFor="age-input" className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Your Age</label>
             <input
+              id="age-input"
               type="number"
               min="1"
               max="120"
@@ -334,8 +264,9 @@ export default function App() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Who is traveling?</label>
+            <label htmlFor="trip-type-select" className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Who is traveling?</label>
             <select
+              id="trip-type-select"
               value={tripType}
               onChange={(e) => setTripType(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-[var(--color-border-light)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] text-sm bg-white transition-shadow"
@@ -473,7 +404,7 @@ export default function App() {
 
   if (!hasSearched) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg)] flex flex-col items-center justify-center p-6 py-12">
+      <main className="min-h-screen bg-[var(--color-bg)] flex flex-col items-center justify-center p-6 py-12">
         <div className="max-w-4xl w-full mx-auto">
           <div className="text-center mb-12">
             <div className="flex items-center justify-center gap-3 text-[var(--color-accent)] mb-6">
@@ -486,22 +417,22 @@ export default function App() {
           </div>
           {renderSearchForm()}
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[var(--color-bg)]">
       {/* Mobile Header Bar */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-[var(--color-border-light)] sticky top-0 z-20">
+      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-[var(--color-border-light)] sticky top-0 z-20">
         <div className="flex items-center gap-2 text-[var(--color-accent)]">
           <img src="/logo.jpg" alt="Culture Compass" className="w-6 h-6 rounded-md cursor-pointer" onClick={() => setHasSearched(false)} />
           <h1 className="text-lg font-medium tracking-tight text-[var(--color-primary)]">CultureCompass</h1>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[var(--color-primary)] p-1">
+        <button aria-label="Toggle mobile menu" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[var(--color-primary)] p-1">
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-      </div>
+      </header>
 
       {/* Sidebar - Fixed on desktop */}
       <aside className={`no-print fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 z-10 w-[260px] bg-[var(--color-sidebar)] border-r border-[var(--color-border-light)] flex-shrink-0 md:h-screen md:sticky md:top-0 overflow-y-auto transition-transform duration-200 ease-in-out`}>
@@ -540,8 +471,8 @@ export default function App() {
               <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--color-secondary)]">Trip Summary</h3>
               <button 
                 onClick={() => setIsEditModalOpen(true)}
+                aria-label="Edit search parameters"
                 className="text-xs font-medium text-[var(--color-accent)] hover:text-[var(--color-primary)] transition-colors underline"
-                title="Edit Search"
               >
                 Edit Search
               </button>
@@ -621,80 +552,7 @@ export default function App() {
               renderSkeleton()
             ) : (
               <div className="pb-16">
-                {activeSection === 'aiCamera' && (
-                  <div className="space-y-6 print-only:block max-w-3xl mx-auto">
-                    <div className="bg-white border border-[var(--color-border-light)] rounded-xl p-8 shadow-sm text-center">
-                      <div className="mb-6 flex justify-center">
-                        <div className="bg-[var(--color-accent-subtle)] text-[var(--color-accent)] p-6 rounded-full inline-block">
-                          <Camera size={48} strokeWidth={1.5} />
-                        </div>
-                      </div>
-                      <h3 className="text-xl font-medium text-[var(--color-primary)] mb-2">Identify Anything</h3>
-                      <p className="text-[var(--color-secondary)] mb-8">
-                        Snap a photo of a monument, street, food, temple, or artwork. Our AI will tell you its story.
-                      </p>
-                      
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        capture="environment" 
-                        className="hidden" 
-                        ref={fileInputRef} 
-                        onChange={handleCameraCapture}
-                      />
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isAnalyzingCamera}
-                        className="bg-[var(--color-accent)] text-white px-8 py-3 rounded-lg font-medium inline-flex items-center gap-2 hover:bg-opacity-90 transition-opacity shadow-sm disabled:opacity-50"
-                      >
-                        {isAnalyzingCamera ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
-                        {isAnalyzingCamera ? 'Analyzing...' : 'Open Camera'}
-                      </button>
-                    </div>
 
-                    {cameraError && (
-                      <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-lg text-sm font-medium">
-                        {cameraError}
-                      </div>
-                    )}
-
-                    {cameraImage && !isAnalyzingCamera && cameraResult && (
-                      <div className="bg-white border border-[var(--color-border-light)] rounded-xl overflow-hidden shadow-sm flex flex-col md:flex-row">
-                        <div className="w-full md:w-1/3 bg-gray-100">
-                          <img src={cameraImage} alt="Captured" className="w-full h-full object-cover min-h-[200px]" />
-                        </div>
-                        <div className="w-full md:w-2/3 p-6 space-y-4">
-                          <h3 className="text-2xl font-medium text-[var(--color-primary)] border-b border-[var(--color-border-light)] pb-4">
-                            {cameraResult.name}
-                          </h3>
-                          
-                          <div>
-                            <h4 className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)] mb-1">History</h4>
-                            <p className="text-sm text-[var(--color-primary)] leading-relaxed">{cameraResult.history}</p>
-                          </div>
-                          
-                          <div>
-                            <h4 className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)] mb-1">Cultural Significance</h4>
-                            <p className="text-sm text-[var(--color-primary)] leading-relaxed">{cameraResult.culturalSignificance}</p>
-                          </div>
-                          
-                          <div>
-                            <h4 className="text-xs font-medium uppercase tracking-wider text-[var(--color-accent)] mb-1">Hidden Facts</h4>
-                            <p className="text-sm text-[var(--color-primary)] leading-relaxed">{cameraResult.hiddenFacts}</p>
-                          </div>
-                          
-                          <div className="bg-[var(--color-bg)] border border-[var(--color-border-light)] rounded-lg p-4 flex items-start gap-3 mt-4">
-                            <CalendarDays className="text-[var(--color-accent)] mt-0.5 flex-shrink-0" size={18} />
-                            <div>
-                              <h4 className="text-xs font-medium uppercase tracking-wider text-[var(--color-secondary)] mb-0.5">Best Time To Visit</h4>
-                              <p className="text-sm text-[var(--color-primary)] font-medium">{cameraResult.bestTimeToVisit}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {activeSection === 'dayPlanner' && (
                   <div className="space-y-6 print-only:block max-w-3xl mx-auto">
