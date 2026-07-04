@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, MapPin, Map, Gem, BookOpen, CalendarDays, Route, Users, RefreshCw, Printer, Search, MapPinned, Loader2, Menu, X, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Camera, MapPin, Map, Gem, BookOpen, CalendarDays, Route, Users, RefreshCw, Printer, Search, MapPinned, Loader2, Menu, X, Edit2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { DestinationData } from './types';
 
 const TRIP_TYPES = ['Solo', 'Couple', 'Family', 'Friends Group'];
 const SECTIONS = [
   { id: 'aiCamera', label: 'AI Camera Guide', icon: Camera },
+  { id: 'dayPlanner', label: 'AI Smart Day Planner', icon: Clock },
   { id: 'overview', label: 'Overview', icon: MapPin },
   { id: 'attractions', label: 'Local Attractions', icon: Gem },
   { id: 'hiddenGems', label: 'Hidden Gems', icon: MapPinned },
@@ -52,6 +53,39 @@ export default function App() {
   const [isAnalyzingCamera, setIsAnalyzingCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Day Planner State
+  const [dayPlanTime, setDayPlanTime] = useState('6 hours');
+  const [dayPlanBudget, setDayPlanBudget] = useState('₹1000');
+  const [dayPlanCompanions, setDayPlanCompanions] = useState('parents');
+  const [dayPlanResult, setDayPlanResult] = useState<any>(null);
+  const [isGeneratingDayPlan, setIsGeneratingDayPlan] = useState(false);
+  const [dayPlanError, setDayPlanError] = useState<string | null>(null);
+
+  const generateDayPlan = async () => {
+    setIsGeneratingDayPlan(true);
+    setDayPlanError(null);
+    setDayPlanResult(null);
+    try {
+      const res = await fetch('/api/generate-day-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          currentLocation, 
+          timeAvailable: dayPlanTime, 
+          budgetAvailable: dayPlanBudget, 
+          travelingWith: dayPlanCompanions 
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to generate day plan. Please try again.');
+      const data = await res.json();
+      setDayPlanResult(data.plan);
+    } catch (err: any) {
+      setDayPlanError(err.message);
+    } finally {
+      setIsGeneratingDayPlan(false);
+    }
+  };
 
   const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -620,6 +654,92 @@ export default function App() {
                     )}
                   </div>
                 )}
+
+                {activeSection === 'dayPlanner' && (
+                  <div className="space-y-6 print-only:block max-w-3xl mx-auto">
+                    <div className="bg-white border border-[var(--color-border-light)] rounded-xl p-8 shadow-sm">
+                      <div className="flex items-center gap-3 mb-6 border-b border-[var(--color-border-light)] pb-4">
+                        <div className="bg-[var(--color-accent-subtle)] text-[var(--color-accent)] p-3 rounded-lg">
+                          <Clock size={24} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-medium text-[var(--color-primary)]">AI Smart Day Planner</h3>
+                          <p className="text-sm text-[var(--color-secondary)]">Optimize your day instantly based on constraints.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                          <label className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Time Available</label>
+                          <input
+                            type="text"
+                            value={dayPlanTime}
+                            onChange={(e) => setDayPlanTime(e.target.value)}
+                            placeholder="e.g. 6 hours"
+                            className="w-full px-4 py-3 rounded-lg border border-[var(--color-border-light)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] text-sm transition-shadow"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Budget</label>
+                          <input
+                            type="text"
+                            value={dayPlanBudget}
+                            onChange={(e) => setDayPlanBudget(e.target.value)}
+                            placeholder="e.g. ₹1000"
+                            className="w-full px-4 py-3 rounded-lg border border-[var(--color-border-light)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] text-sm transition-shadow"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-[var(--color-secondary)] uppercase tracking-wider mb-1.5">Traveling With</label>
+                          <input
+                            type="text"
+                            value={dayPlanCompanions}
+                            onChange={(e) => setDayPlanCompanions(e.target.value)}
+                            placeholder="e.g. Parents"
+                            className="w-full px-4 py-3 rounded-lg border border-[var(--color-border-light)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] text-sm transition-shadow"
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={generateDayPlan}
+                        disabled={isGeneratingDayPlan || !dayPlanTime || !dayPlanBudget || !dayPlanCompanions}
+                        className="w-full bg-[var(--color-primary)] text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-opacity-90 transition-opacity shadow-sm disabled:opacity-50"
+                      >
+                        {isGeneratingDayPlan ? <Loader2 className="animate-spin" size={18} /> : <Clock size={18} />}
+                        {isGeneratingDayPlan ? 'Generating Plan...' : 'Generate Smart Plan'}
+                      </button>
+                    </div>
+
+                    {dayPlanError && (
+                      <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-lg text-sm font-medium">
+                        {dayPlanError}
+                      </div>
+                    )}
+
+                    {dayPlanResult && !isGeneratingDayPlan && (
+                      <div className="bg-white border border-[var(--color-border-light)] rounded-xl p-6 shadow-sm">
+                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[var(--color-border-light)] before:via-[var(--color-border-light)] before:to-transparent">
+                          {dayPlanResult.map((item: any, idx: number) => (
+                            <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-[var(--color-accent)] text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                                <Clock size={16} />
+                              </div>
+                              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-[var(--color-border-light)] bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h4 className="font-bold text-[var(--color-primary)]">{item.activity}</h4>
+                                </div>
+                                <time className="block text-xs font-medium uppercase tracking-wider text-[var(--color-accent)] mb-2">{item.time}</time>
+                                <p className="text-sm text-[var(--color-secondary)] leading-relaxed">{item.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {activeSection === 'overview' && data.overview && (
                   <div className="bg-white p-6 md:p-8 rounded-xl border border-[var(--color-border-light)] shadow-sm print-only:block">
                     <p className="text-lg md:text-xl font-medium text-[var(--color-accent)] leading-relaxed">
