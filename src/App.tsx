@@ -119,7 +119,7 @@ export default function App() {
     }
   };
 
-  const fetchSection = async (sectionId: string, isRegenerate = false, locationOverride?: string) => {
+  const fetchSection = async (sectionId: string, isRegenerate = false, locationOverride?: string, ageOverride?: number, durationOverride?: number) => {
     if (sectionId === 'mapView') return; // Map view doesn't need AI generation
     
     setLoadingSections(prev => ({ ...prev, [sectionId]: true }));
@@ -127,11 +127,14 @@ export default function App() {
     
     try {
       const locToUse = locationOverride || currentLocation;
+      const ageToUse = ageOverride || age;
+      const durationToUse = durationOverride || duration;
+      
       const res = await fetch('/api/generate-section', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          currentLocation: locToUse, age, tripType, duration, 
+          currentLocation: locToUse, age: ageToUse, tripType, duration: durationToUse, 
           budget, foodPreference, religion, adventureLevel, walkingPreference, languages, interests,
           section: sectionId, isRegenerate 
         }),
@@ -202,10 +205,15 @@ export default function App() {
       return;
     }
 
-    if (!age || age < 1 || age > 120) {
+    let currentAge = age;
+    if (!currentAge || currentAge < 1 || currentAge > 120) {
+      currentAge = 30;
       setAge(30);
     }
-    if (duration < 1 || duration > 14) {
+    
+    let currentDuration = duration;
+    if (!currentDuration || currentDuration < 1 || currentDuration > 14) {
+      currentDuration = 3;
       setDuration(3);
     }
 
@@ -222,20 +230,20 @@ export default function App() {
     setOpenDays({ 1: true });
     
     // Fetch overview immediately
-    fetchSection('overview', false, loc);
+    fetchSection('overview', false, loc, currentAge, currentDuration);
     // Progressively load other sections in background
-    setTimeout(() => fetchSection('attractions', false, loc), 1000);
-    setTimeout(() => fetchSection('hiddenGems', false, loc), 2000);
-    setTimeout(() => fetchSection('storytelling', false, loc), 3000);
-    setTimeout(() => fetchSection('events', false, loc), 4000);
-    setTimeout(() => fetchSection('itinerary', false, loc), 5000);
-    setTimeout(() => fetchSection('connectLocally', false, loc), 6000);
+    setTimeout(() => fetchSection('attractions', false, loc, currentAge, currentDuration), 1000);
+    setTimeout(() => fetchSection('hiddenGems', false, loc, currentAge, currentDuration), 2000);
+    setTimeout(() => fetchSection('storytelling', false, loc, currentAge, currentDuration), 3000);
+    setTimeout(() => fetchSection('events', false, loc, currentAge, currentDuration), 4000);
+    setTimeout(() => fetchSection('itinerary', false, loc, currentAge, currentDuration), 5000);
+    setTimeout(() => fetchSection('connectLocally', false, loc, currentAge, currentDuration), 6000);
   };
 
   // Effect to load section content when navigating
   useEffect(() => {
     if (hasSearched && activeSection !== 'mapView' && !data[activeSection as keyof DestinationData] && !loadingSections[activeSection]) {
-      fetchSection(activeSection);
+      fetchSection(activeSection, false, currentLocation, age || 30, duration || 3);
     }
   }, [activeSection, hasSearched]);
 
@@ -440,7 +448,7 @@ export default function App() {
         <div className="max-w-4xl w-full mx-auto">
           <div className="text-center mb-12">
             <div className="flex items-center justify-center gap-3 text-[var(--color-accent)] mb-6">
-              <img src="/logo.jpg" alt="Culture Compass" className="w-16 h-16 rounded-xl shadow-sm" />
+              <img src="/logo.jpg" alt="Culture Compass" className="w-16 h-16 rounded-xl shadow-sm cursor-pointer" onClick={() => setHasSearched(false)} />
             </div>
             <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-[var(--color-primary)] mb-4">Welcome to CultureCompass</h1>
             <p className="text-lg md:text-xl text-[var(--color-secondary)] max-w-2xl mx-auto leading-relaxed">
@@ -458,7 +466,7 @@ export default function App() {
       {/* Mobile Header Bar */}
       <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-[var(--color-border-light)] sticky top-0 z-20">
         <div className="flex items-center gap-2 text-[var(--color-accent)]">
-          <img src="/logo.jpg" alt="Culture Compass" className="w-6 h-6 rounded-md" />
+          <img src="/logo.jpg" alt="Culture Compass" className="w-6 h-6 rounded-md cursor-pointer" onClick={() => setHasSearched(false)} />
           <h1 className="text-lg font-medium tracking-tight text-[var(--color-primary)]">CultureCompass</h1>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[var(--color-primary)] p-1">
@@ -470,7 +478,7 @@ export default function App() {
       <aside className={`no-print fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 z-10 w-64 bg-[var(--color-sidebar)] border-r border-[var(--color-border-light)] flex-shrink-0 md:h-screen md:sticky md:top-0 overflow-y-auto transition-transform duration-200 ease-in-out`}>
         <div className="p-6">
           <div className="hidden md:flex items-center gap-2 text-[var(--color-accent)] mb-8">
-            <img src="/logo.jpg" alt="Culture Compass" className="w-8 h-8 rounded-lg shadow-sm" />
+            <img src="/logo.jpg" alt="Culture Compass" className="w-8 h-8 rounded-lg shadow-sm cursor-pointer" onClick={() => setHasSearched(false)} />
             <h1 className="text-xl font-medium tracking-tight text-[var(--color-primary)]">CultureCompass</h1>
           </div>
           
