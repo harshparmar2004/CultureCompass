@@ -130,23 +130,50 @@ export default function App() {
       const ageToUse = ageOverride || age;
       const durationToUse = durationOverride || duration;
       
+      const requestBody = { 
+        currentLocation: locToUse, age: ageToUse, tripType, duration: durationToUse, 
+        budget, foodPreference, religion, adventureLevel, walkingPreference, languages, interests,
+        section: sectionId, isRegenerate 
+      };
+      
+      console.log(`[fetchSection] Initiating API call for section: ${sectionId}`);
+      console.log(`[fetchSection] URL: /api/generate-section`);
+      console.log(`[fetchSection] Headers: { 'Content-Type': 'application/json' }`);
+      console.log(`[fetchSection] Body:`, JSON.stringify(requestBody));
+
       const res = await fetch('/api/generate-section', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          currentLocation: locToUse, age: ageToUse, tripType, duration: durationToUse, 
-          budget, foodPreference, religion, adventureLevel, walkingPreference, languages, interests,
-          section: sectionId, isRegenerate 
-        }),
+        body: JSON.stringify(requestBody),
       });
       
+      console.log(`[fetchSection] Raw response status: ${res.status} ${res.statusText}`);
+      
       if (!res.ok) {
-        throw new Error(`Failed to generate ${sectionId}.`);
+        const errorText = await res.text();
+        console.error(`[fetchSection] API Error for ${sectionId}:`, errorText);
+        throw new Error(`Server returned ${res.status}: ${errorText || res.statusText}`);
       }
       
-      const json = await res.json();
+      const text = await res.text();
+      console.log(`[fetchSection] Raw response body for ${sectionId}:`, text);
+      
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (e: any) {
+        console.error(`[fetchSection] Failed to parse JSON response for ${sectionId}:`, e);
+        throw new Error(`Failed to parse AI response: ${e.message}`);
+      }
+      
+      if (json.error) {
+         throw new Error(`API returned error: ${json.error}`);
+      }
+      
+      console.log(`[fetchSection] Successfully fetched data for ${sectionId}`);
       setData(prev => ({ ...prev, ...json }));
     } catch (err: any) {
+      console.error(`[fetchSection] Exception caught for ${sectionId}:`, err);
       setErrorSections(prev => ({ ...prev, [sectionId]: err.message || 'An error occurred.' }));
     } finally {
       setLoadingSections(prev => ({ ...prev, [sectionId]: false }));
@@ -200,6 +227,8 @@ export default function App() {
 
   const handleInitialExplore = (overrideLocation?: string | any) => {
     const loc = typeof overrideLocation === 'string' ? overrideLocation : currentLocation;
+    console.log(`[handleInitialExplore] Triggered. Location: "${loc}", Age: ${age}, TripType: "${tripType}", Duration: ${duration}`);
+    
     if (!loc || !loc.trim()) {
       alert("Please enter your current location.");
       return;
@@ -475,7 +504,7 @@ export default function App() {
       </div>
 
       {/* Sidebar - Fixed on desktop */}
-      <aside className={`no-print fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 z-10 w-64 bg-[var(--color-sidebar)] border-r border-[var(--color-border-light)] flex-shrink-0 md:h-screen md:sticky md:top-0 overflow-y-auto transition-transform duration-200 ease-in-out`}>
+      <aside className={`no-print fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 z-10 w-[260px] bg-[var(--color-sidebar)] border-r border-[var(--color-border-light)] flex-shrink-0 md:h-screen md:sticky md:top-0 overflow-y-auto transition-transform duration-200 ease-in-out`}>
         <div className="p-6">
           <div className="hidden md:flex items-center gap-2 text-[var(--color-accent)] mb-8">
             <img src="/logo.jpg" alt="Culture Compass" className="w-8 h-8 rounded-lg shadow-sm cursor-pointer" onClick={() => setHasSearched(false)} />
@@ -493,10 +522,10 @@ export default function App() {
                     setActiveSection(section.id);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-left text-sm font-medium
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left text-sm font-medium
                     ${isActive 
-                      ? 'bg-[var(--color-accent-subtle)] text-[var(--color-primary)] shadow-[inset_3px_0_0_0_var(--color-accent)]' 
-                      : 'text-[var(--color-secondary)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]'
+                      ? 'border-l-[3px] border-[var(--color-accent)] bg-[var(--color-accent-subtle)] text-[var(--color-primary)] rounded-r-lg' 
+                      : 'text-[var(--color-secondary)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)] rounded-lg'
                     }`}
                 >
                   <Icon size={18} />
@@ -511,16 +540,21 @@ export default function App() {
               <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--color-secondary)]">Trip Summary</h3>
               <button 
                 onClick={() => setIsEditModalOpen(true)}
-                className="text-[var(--color-accent)] hover:text-[var(--color-primary)] transition-colors p-1"
+                className="text-xs font-medium text-[var(--color-accent)] hover:text-[var(--color-primary)] transition-colors underline"
                 title="Edit Search"
               >
-                <Edit2 size={14} />
+                Edit Search
               </button>
             </div>
             <p className="font-medium text-[var(--color-primary)] mb-1 truncate" title={currentLocation}>
               {currentLocation}
             </p>
-            <p className="text-sm text-[var(--color-secondary)] mb-3">{age} yrs • {tripType} • {duration} Days</p>
+            <p className="text-sm text-[var(--color-secondary)] mb-1">{tripType} • {duration} Days</p>
+            {interests && (
+              <p className="text-xs text-[var(--color-secondary)] truncate" title={interests}>
+                Interests: {interests}
+              </p>
+            )}
           </div>
         </div>
       </aside>
