@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Map, Gem, BookOpen, CalendarDays, Route, Users, RefreshCw, Printer, Search, MapPinned, Loader2, Menu, X, Edit2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { DestinationData } from './types';
+import { fetchSectionData } from './services/api';
 
 const TRIP_TYPES = ['Solo', 'Couple', 'Family', 'Friends Group'];
 const SECTIONS = [
@@ -46,8 +47,32 @@ export default function App() {
   // Accordion state for itinerary
   const [openDays, setOpenDays] = useState<Record<number, boolean>>({ 1: true });
 
+  const [dayPlanTime, setDayPlanTime] = useState('9:00 AM to 5:00 PM');
+  const [dayPlanBudget, setDayPlanBudget] = useState('Medium ($$)');
+  const [dayPlanCompanions, setDayPlanCompanions] = useState('Solo');
+  const [dayPlanResult, setDayPlanResult] = useState<any[] | null>(null);
+  const [isGeneratingDayPlan, setIsGeneratingDayPlan] = useState(false);
+  const [dayPlanError, setDayPlanError] = useState<string | null>(null);
 
-
+  const generateDayPlan = async () => {
+    setIsGeneratingDayPlan(true);
+    setDayPlanError(null);
+    setDayPlanResult(null);
+    try {
+      const { generateDayPlan: apiGenerateDayPlan } = await import('./services/api');
+      const plan = await apiGenerateDayPlan(
+        currentLocation,
+        dayPlanTime,
+        dayPlanBudget,
+        dayPlanCompanions
+      );
+      setDayPlanResult(plan);
+    } catch (err: any) {
+      setDayPlanError(err.message);
+    } finally {
+      setIsGeneratingDayPlan(false);
+    }
+  };
   const fetchSection = async (sectionId: string, isRegenerate = false, locationOverride?: string, ageOverride?: number, durationOverride?: number) => {
     if (sectionId === 'mapView') return; // Map view doesn't need AI generation
     
@@ -55,54 +80,23 @@ export default function App() {
     setErrorSections(prev => ({ ...prev, [sectionId]: null }));
     
     try {
-      const locToUse = locationOverride || currentLocation;
-      const ageToUse = ageOverride || age;
-      const durationToUse = durationOverride || duration;
-      
-      const requestBody = { 
-        currentLocation: locToUse, age: ageToUse, tripType, duration: durationToUse, 
-        budget, foodPreference, religion, adventureLevel, walkingPreference, languages, interests,
-        section: sectionId, isRegenerate 
+      const searchParams = {
+        currentLocation: locationOverride || currentLocation,
+        age: ageOverride || age,
+        tripType,
+        duration: durationOverride || duration,
+        budget,
+        foodPreference,
+        religion,
+        adventureLevel,
+        walkingPreference,
+        languages,
+        interests
       };
-      
-      console.log(`[fetchSection] Initiating API call for section: ${sectionId}`);
-      console.log(`[fetchSection] URL: /api/generate-section`);
-      console.log(`[fetchSection] Headers: { 'Content-Type': 'application/json' }`);
-      console.log(`[fetchSection] Body:`, JSON.stringify(requestBody));
 
-      const res = await fetch('/api/generate-section', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log(`[fetchSection] Raw response status: ${res.status} ${res.statusText}`);
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`[fetchSection] API Error for ${sectionId}:`, errorText);
-        throw new Error(`Server returned ${res.status}: ${errorText || res.statusText}`);
-      }
-      
-      const text = await res.text();
-      console.log(`[fetchSection] Raw response body for ${sectionId}:`, text);
-      
-      let json;
-      try {
-        json = JSON.parse(text);
-      } catch (e: any) {
-        console.error(`[fetchSection] Failed to parse JSON response for ${sectionId}:`, e);
-        throw new Error(`Failed to parse AI response: ${e.message}`);
-      }
-      
-      if (json.error) {
-         throw new Error(`API returned error: ${json.error}`);
-      }
-      
-      console.log(`[fetchSection] Successfully fetched data for ${sectionId}`);
-      setData(prev => ({ ...prev, ...json }));
+      const data = await fetchSectionData(sectionId, searchParams, isRegenerate);
+      setData(prev => ({ ...prev, ...data }));
     } catch (err: any) {
-      console.error(`[fetchSection] Exception caught for ${sectionId}:`, err);
       setErrorSections(prev => ({ ...prev, [sectionId]: err.message || 'An error occurred.' }));
     } finally {
       setLoadingSections(prev => ({ ...prev, [sectionId]: false }));
