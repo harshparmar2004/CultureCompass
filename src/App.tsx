@@ -201,13 +201,12 @@ export default function App() {
       alert("Please enter your current location.");
       return;
     }
+
     if (!age || age < 1 || age > 120) {
-      alert("Please enter a valid age.");
-      return;
+      setAge(30);
     }
     if (duration < 1 || duration > 14) {
-      alert("Duration must be between 1 and 14 days.");
-      return;
+      setDuration(3);
     }
 
     if (typeof overrideLocation === 'string') {
