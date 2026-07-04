@@ -8,6 +8,25 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
+  app.get("/api/geocode", async (req, res) => {
+    try {
+      const { lat, lon } = req.query;
+      const apiKey = process.env.VITE_GEOAPIFY_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "VITE_GEOAPIFY_API_KEY not configured" });
+      }
+      const response = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&apiKey=${apiKey}`);
+      if (!response.ok) {
+        throw new Error(`Geoapify error: ${response.status}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Geocode error:", error);
+      res.status(500).json({ error: "Failed to geocode" });
+    }
+  });
+
   app.post("/api/analyze-image", async (req, res) => {
     try {
       const { image, currentLocation } = req.body;
@@ -343,7 +362,7 @@ ${sectionPrompt}`;
 
       res.json(JSON.parse(text));
     } catch (error: any) {
-      console.error(error);
+      console.error("Generate section error:", error);
       res.status(500).json({ error: "Failed to generate section" });
     }
   });

@@ -158,20 +158,20 @@ export default function App() {
           const { latitude, longitude } = position.coords;
           try {
             let locationName = `${latitude}, ${longitude}`;
-            const apiKey = (import.meta as any).env.VITE_GEOAPIFY_API_KEY;
-            
-            if (apiKey) {
-              const res = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=${apiKey}`);
+            const res = await fetch(`/api/geocode?lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
               const data = await res.json();
               if (data.features && data.features.length > 0) {
                  const props = data.features[0].properties;
                  locationName = props.city || props.town || props.county || props.state || locationName;
               }
             } else {
-              // Fallback to OSM
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-              const data = await res.json();
-              locationName = data.address.city || data.address.town || data.address.village || data.address.state || locationName;
+              // Fallback to OSM if backend proxy fails
+              const resOs = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+              if (resOs.ok) {
+                const data = await resOs.json();
+                locationName = data.address.city || data.address.town || data.address.village || data.address.state || locationName;
+              }
             }
             
             setCurrentLocation(locationName);
